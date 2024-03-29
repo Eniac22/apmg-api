@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Validator;
 use App\Models\User;
+use App\Models\Business;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,27 +19,38 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required',
+            'email' => 'required|email',
+            'password' => 'required',
+            'c_password' => 'required|same:password',
+            'user_type' => 'required|in:user,business', // Add a field to specify user type
+            'business_name' => 'required_if:user_type,business', // Business name is required for business agents
+            'address' => 'required_if:user_type,business', // Address is required for business agents
+            'contact_number' => 'required_if:user_type,business', // Contact number is required for business agents
+        ]);
 
-         $validator = Validator::make($request->all(), 
-                      [ 
-                      'name' => 'required',
-                      'email' => 'required|email',
-                      'password' => 'required',  
-                      'c_password' => 'required|same:password', 
-                     ]);  
-
-         if ($validator->fails()) {  
-
-               return response()->json(['error'=>$validator->errors()], 401); 
-
-            }   
-
+        if ($validator->fails()) {
+            return response()->json(['error' => $validator->errors()], 401);
+        }
 
         $user = new User();
         $user->name = $request->name;
+        if ($request->has('type')) {
+            $user->role = $request->type;
+        }
         $user->email = $request->email;
         $user->password = bcrypt($request->password);
         $user->save();
+
+        if ($request->user_type === 'business') {
+            $business = new Business();
+            $business->admin_id = $user->id;
+            $business->name = $request->business_name;
+            $business->address = $request->address;
+            $business->contact_number = $request->contact_number;
+            $business->save();
+        }
 
         if ($this->token) {
             return $this->login($request);
