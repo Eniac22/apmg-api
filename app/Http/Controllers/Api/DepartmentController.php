@@ -19,13 +19,16 @@ class DepartmentController extends Controller
         $businessId = Business::where('admin_id', $adminId)->value('id');
 
         // Retrieve all departments with super_department_id as null under the business with the retrieved business ID
-        $superDepartments = Department::where('business_id', $businessId)
+        $superDepartments = Department::select('departments.*')
+            ->selectRaw('EXISTS (SELECT 1 FROM departments AS d WHERE d.super_department_id = departments.id) AS has_sub_departments')
+            ->selectRaw('EXISTS (SELECT 1 FROM officers_to_department WHERE officers_to_department.department_id = departments.id) AS has_officers')
+            ->where('business_id', $businessId)
             ->whereNull('super_department_id')
             ->get();
 
         return response()->json($superDepartments);
     }
-    
+
     public function listSubDepartments(Request $request, Department $department)
     {
         // Get the ID of the authenticated user's business (assuming you're using authentication)
@@ -38,7 +41,11 @@ class DepartmentController extends Controller
         }
 
         // Retrieve all sub-departments where the super_department_id matches the ID of the specified department
-        $subDepartments = Department::where('super_department_id', $department->id)->get();
+        $subDepartments = Department::select('departments.*')
+            ->selectRaw('EXISTS (SELECT 1 FROM departments AS d WHERE d.super_department_id = departments.id) AS has_sub_departments')
+            ->selectRaw('EXISTS (SELECT 1 FROM officers_to_department WHERE officers_to_department.department_id = departments.id) AS has_officers')
+            ->where('super_department_id', $department->id)
+            ->get();
 
         return response()->json($subDepartments);
     }
