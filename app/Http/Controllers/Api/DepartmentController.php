@@ -65,15 +65,55 @@ class DepartmentController extends Controller
         // Retrieve the business ID associated with the admin user
         $businessId = Business::where('admin_id', $adminId)->value('id');
 
+        // Initialize the super_department_id variable
+        $superDepartmentId = null;
+
+        // Check if the request contains a field for super_department_id and it has a value
+        if ($request->has('super_department_id') && $request->filled('super_department_id')) {
+            $superDepartmentId = $request->input('super_department_id');
+        }
+
         // Create a new department with the validated data
         $department = Department::create([
             'name' => $request->name,
             'contact_number' => $request->contact_number,
             'average_processing_time' => $request->average_processing_time,
             'business_id' => $businessId,
+            'super_department_id' => $superDepartmentId, // Set the super_department_id conditionally
             // Add more fields as needed
         ]);
 
         return response()->json($department, 201);
     }
+
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'name' => 'required|string',
+            'contact_number' => 'required|string',
+            'average_processing_time' => 'nullable|integer',
+            // Add more validation rules as needed
+        ]);
+
+        $department = Department::findOrFail($id);
+
+        $department->update([
+            'name' => $request->name,
+            'contact_number' => $request->contact_number,
+            'average_processing_time' => $request->average_processing_time,
+            // Update more fields as needed
+        ]);
+
+        return response()->json($department, 200);
+    }
+
+    // Delete a department
+    public function destroy($id)
+    {
+        $department = Department::findOrFail($id);
+        $department->delete();
+
+        return response()->json('deleted', 204);
+    }
+
 }

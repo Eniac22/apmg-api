@@ -21,7 +21,11 @@ Route::middleware(['jwtAuth', 'role:business'])->group(function () {
     Route::get('/business/departments/super',[DepartmentController::class, 'showAllSuperDepartments']);
     Route::post('/business/departments',[DepartmentController::class, 'store']);
     Route::post('/business/departments/{department}/officers',[OfficerController::class, 'create']);
+    Route::put('/business/departments/{department}/officers/{officer}',[OfficerController::class, 'update']);
+    Route::delete('/business/departments/{department}/officers/{officer}',[OfficerController::class, 'destroy']);
     Route::get('/business/departments/{department}/sub-departments',[DepartmentController::class, 'listSubDepartments']);
+    Route::put('/business/departments/{id}',[DepartmentController::class, 'update']);
+    Route::delete('/business/departments/{id}',[DepartmentController::class, 'destroy']);
 
 
 });
