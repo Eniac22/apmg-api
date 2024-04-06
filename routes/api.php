@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\AppointmentController;
 
 Route::middleware(['jwtAuth', 'role:user'])->group(function () {    
     Route::post('/user/appointments',[AppointmentController::class, 'store']);
+    Route::get('/user/appointments',[AppointmentController::class, 'index']);
 });
 
 Route::middleware(['jwtAuth', 'role:officer'])->get('/officer/dashboard', function (Request $request) {

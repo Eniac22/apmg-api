@@ -14,16 +14,25 @@ class AppointmentController extends Controller
 {
     public function index()
     {
-        $adminId = Auth::id();
-        $businessId = Business::where('admin_id', $adminId)->value('id');
+        $userID = Auth::id();
+        $result = [];
+        $appointments = Appointment::with(['user', 'department', 'officer'])
+        ->where('user_id', $userID)
+        ->orderBy('department_id')
+        ->orderBy('officer_id')
+        ->get();
+    
+    // Now you can access the current token for each officer within appointments
+        $i = 0;
+        foreach ($appointments as $appointment) {
+            $currentToken = $appointment->officer->current_token;
+            $appointment->currentToken = $currentToken; // Assigning to a new key
+            $result[$i] = $appointment;
+            $i++;
+        }
+    
         
-        $appointments = Appointment::with(['slot', 'user'])
-            ->where('business_id', $businessId)
-            ->orderBy('department_id')
-            ->orderBy('officer_id')
-            ->get();
-        
-        return response()->json($appointments);
+        return response()->json($result);
     }
     
     public function store(Request $request)

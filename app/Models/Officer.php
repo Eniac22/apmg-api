@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class Officer extends Model
 {
@@ -18,6 +19,13 @@ class Officer extends Model
     }
     public function departments()
     {
-        return $this->belongsToMany(Department::class, 'officers_to_department', 'officer_id', 'department_id');
+        return $this->belongsToMany(Department::class, 'officers_to_department')
+            ->withPivot(['last_token', 'current_token', 'last_token_updated_at']);
+    }
+    public function getCurrentTokenAttribute()
+    {
+        return DB::table('officers_to_department')
+            ->where('officer_id', $this->id)
+            ->value('current_token');
     }
 }
