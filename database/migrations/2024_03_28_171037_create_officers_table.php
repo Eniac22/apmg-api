@@ -17,10 +17,7 @@ class CreateOfficersTable extends Migration
             $table->id();
             $table->unsignedBigInteger('user_id');
             $table->string('contact_number')->nullable();
-            $table->integer('last_token')->nullable();
-            $table->integer('current_token')->nullable();
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
-            $table->timestamp('last_token_updated_at');
             $table->timestamps();
             
         });

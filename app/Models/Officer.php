@@ -6,8 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class Officer extends Model
 {
-    protected $fillable = ['user_id', 'contact_number', 'last_token', 'current_token', 'last_token_updated_at'];
+    protected $fillable = ['user_id', 'contact_number', 'last_token', 'current_token'];
 
+    protected $dates = [
+        'last_token_updated_at',
+    ];
     // Define the relationship with the User model
     public function user()
     {

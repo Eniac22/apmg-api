@@ -5,10 +5,10 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DepartmentController;
 use App\Http\Controllers\Api\OfficerController;
+use App\Http\Controllers\Api\AppointmentController;
 
-
-Route::middleware(['jwtAuth', 'role:user'])->get('/user/profile', function (Request $request) {
-    return response()->json(['message' => 'User Profile']);
+Route::middleware(['jwtAuth', 'role:user'])->group(function () {    
+    Route::post('/user/appointments',[AppointmentController::class, 'store']);
 });
 
 Route::middleware(['jwtAuth', 'role:officer'])->get('/officer/dashboard', function (Request $request) {
