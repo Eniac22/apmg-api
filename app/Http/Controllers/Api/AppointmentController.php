@@ -13,27 +13,34 @@ use Illuminate\Support\Facades\DB;
 class AppointmentController extends Controller
 {
     public function index()
-    {
+    {           
         $userID = Auth::id();
         $result = [];
         $appointments = Appointment::with(['user', 'department', 'officer'])
-        ->where('user_id', $userID)
-        ->orderBy('department_id')
-        ->orderBy('officer_id')
-        ->get();
-    
-    // Now you can access the current token for each officer within appointments
-        $i = 0;
+            ->where('user_id', $userID)
+            ->orderBy('department_id')
+            ->orderBy('officer_id')
+            ->get();
+
+        // Now you can access the current token for each officer within appointments
         foreach ($appointments as $appointment) {
             $currentToken = $appointment->officer->current_token;
             $appointment->currentToken = $currentToken; // Assigning to a new key
-            $result[$i] = $appointment;
-            $i++;
+
+            // Include officer's contact number in the response
+            $appointment->officer_contact_number = $appointment->officer->contact_number;
+
+            // Include officer's name if available
+            if ($appointment->officer->user) {
+                $appointment->officer_name = $appointment->officer->user->name;
+            }
+
+            $result[] = $appointment;
         }
-    
-        
+
         return response()->json($result);
     }
+
     
     public function store(Request $request)
     {
