@@ -41,6 +41,39 @@ class AppointmentController extends Controller
         return response()->json($result);
     }
 
+    public function viewAppoinment($id) {
+        $appointment = Appointment::findOrFail($id);
+        return response()->json($appointment);
+    }
+
+    public function deleteAppointment($id) {
+        $appointment = Appointment::findOrFail($id);
+        $appointment->delete();
+        
+        return response()->json(['message' => 'Appointment deleted successfully']);
+    }
+
+    public function updateAppointment(Request $request, $id) {
+        $appointment = Appointment::findOrFail($id);
+        
+        $validatedData = $request->validate([
+            // Define your validation rules here based on your needs
+            // Example:
+            'slot_id' => 'required|exists:slots,id',
+            'user_id' => 'required|exists:users,id',
+            'officer_id' => 'required|exists:officers,id',
+            'department_id' => 'required|exists:departments,id',
+            'business_id' => 'required|exists:businesses,id',
+            'slot_datetime' => 'required|date',
+            'reason' => 'required|string',
+        ]);
+        
+        $appointment->update($validatedData);
+        
+        return response()->json(['message' => 'Appointment updated successfully']);
+    }
+    
+
     
     public function store(Request $request)
     {

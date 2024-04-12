@@ -10,6 +10,13 @@ use Illuminate\Support\Facades\Auth;
 
 class DepartmentController extends Controller
 {
+
+    public function getAllDepartments()
+    {
+        $departments = Department::all()->pluck('name', 'id');
+        return response()->json($departments);
+    }
+
     public function showAllSuperDepartments()
     {
         // Get the ID of the authenticated user (assuming you're using authentication)

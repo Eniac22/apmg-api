@@ -6,10 +6,19 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DepartmentController;
 use App\Http\Controllers\Api\OfficerController;
 use App\Http\Controllers\Api\AppointmentController;
+use App\Http\Controllers\Api\BusinessController;
 
 Route::middleware(['jwtAuth', 'role:user'])->group(function () {    
     Route::post('/user/appointments',[AppointmentController::class, 'store']);
     Route::get('/user/appointments',[AppointmentController::class, 'index']);
+    Route::get('/user/all-business',[BusinessController::class, 'getAllBusiness']);
+    Route::get('/user/all-departments',[DepartmentController::class, 'getAllDepartments']);
+    Route::get('/user/all-officers',[OfficerController::class, 'getAllOfficers']);
+    Route::get('/appointments/{id}/edit', [AppointmentController::class, 'editAppointment']);
+    Route::put('/appointments/{id}', [AppointmentController::class, 'updateAppointment']);
+    Route::delete('/appointments/{id}', [AppointmentController::class, 'deleteAppointment']);
+
+
 });
 
 Route::middleware(['jwtAuth', 'role:officer'])->get('/officer/dashboard', function (Request $request) {
@@ -27,6 +36,7 @@ Route::middleware(['jwtAuth', 'role:business'])->group(function () {
     Route::get('/business/departments/{department}/sub-departments',[DepartmentController::class, 'listSubDepartments']);
     Route::put('/business/departments/{id}',[DepartmentController::class, 'update']);
     Route::delete('/business/departments/{id}',[DepartmentController::class, 'destroy']);
+    // Route::get('/business/departments/{department}/officers/{officer}',[DepartmentController::class, 'destroy']);
 
 
 });

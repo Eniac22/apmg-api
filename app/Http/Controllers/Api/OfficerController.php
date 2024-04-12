@@ -12,6 +12,11 @@ use Illuminate\Support\Facades\Auth;
 
 class OfficerController extends Controller
 {
+    public function getAllOfficers()
+    {
+        $officers = Officer::all()->pluck('name', 'id');
+        return response()->json($officers);
+    }
 
     public function index(Request $request, Department $department)
     {
@@ -93,6 +98,20 @@ class OfficerController extends Controller
         ]);
 
         return response()->json($officer, 200);
+    }
+
+    public function showAssignedDepartments($officerId=null) {
+        // Retrieve the officer
+        if(!$officerId){
+            $officerId = Auth::id();
+        }
+        $officer = Officer::findOrFail($officerId);
+        
+        // Retrieve the assigned departments for the officer
+        $assignedDepartments = $officer->departments()->get();
+        
+        // Return the departments as JSON response
+        return response()->json($assignedDepartments);
     }
 
     // Delete an existing officer

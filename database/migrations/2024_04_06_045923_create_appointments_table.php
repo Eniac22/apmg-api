@@ -18,6 +18,7 @@ class CreateAppointmentsTable extends Migration
             $table->unsignedBigInteger('user_id');
             $table->unsignedBigInteger('officer_id');
             $table->dateTime('slot_datetime');
+            $table->string('reason');
             $table->unsignedBigInteger('department_id');
             $table->unsignedBigInteger('business_id');
             $table->timestamps();
