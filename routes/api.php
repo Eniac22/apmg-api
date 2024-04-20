@@ -24,8 +24,11 @@ Route::middleware(['jwtAuth', 'role:user'])->group(function () {
 
 });
 
-Route::middleware(['jwtAuth', 'role:officer'])->get('/officer/dashboard', function (Request $request) {
-    return response()->json(['message' => 'Officer Dashboard']);
+Route::middleware(['jwtAuth', 'role:officer'])->group(function () {    
+    Route::get('/officer/departments',[OfficerController::class, 'showAssignedDepartments']);
+    Route::get('/officer/department/{departmentId}/appointments', [OfficerController::class, 'getAllAppointments']);
+    Route::put('/officer/department/{departmentId}/token', [OfficerController::class, 'updateToken']);
+
 });
 
 

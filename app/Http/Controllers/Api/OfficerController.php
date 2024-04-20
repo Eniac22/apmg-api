@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+
+
 use App\Models\User;
 use App\Models\Officer;
 use App\Models\Business;
@@ -17,6 +20,22 @@ class OfficerController extends Controller
     {
         $officers = Officer::all()->pluck('name', 'id');
         return response()->json($officers);
+    }
+
+    public function getAllDepartments()
+    {
+        // Get the logged-in officer
+        $officer = Auth::id();
+
+        // If officer not found, return empty array
+        if (!$officer) {
+            return response()->json([]);
+        }
+
+        // Retrieve all departments assigned to the officer
+        $departments = $officer->departments()->with('subDepartments')->get();
+
+        return response()->json($departments);
     }
 
     public function index(Request $request, Department $department)
@@ -101,18 +120,60 @@ class OfficerController extends Controller
         return response()->json($officer, 200);
     }
 
-    public function showAssignedDepartments($officerId=null) {
+    public function showAssignedDepartments($userId=null) {
         // Retrieve the officer
-        if(!$officerId){
-            $officerId = Auth::id();
+        if(!$userId){
+            $userId = Auth::id();
         }
-        $officer = Officer::findOrFail($officerId);
+        $officer = Officer::where('user_id', $userId)->with('user', 'departments')->firstOrFail();
+
+            // Access additional details
+            $userDetails = $officer->user->toArray();
+            $departmentDetails = $officer->departments->toArray();
+
+            // Merge user details and department details into a single array
+            $officerDetails = array_merge($userDetails, ['departments' => $departmentDetails]);
+        return response()->json($officerDetails);
+    }
+
+    public function updateToken(Request $request, $departmentId)
+    {
+        $userId = Auth::id();
         
-        // Retrieve the assigned departments for the officer
-        $assignedDepartments = $officer->departments()->get();
-        
-        // Return the departments as JSON response
-        return response()->json($assignedDepartments);
+        $officer = Officer::where('user_id', $userId)->with('user', 'departments')->firstOrFail();
+
+        // Retrieve officer ID
+        $officerId = $officer->id;
+
+        // Retrieve department for the officer
+        $department = Department::findOrFail($departmentId);
+        $officerDepartment = $department->officers()->where('officer_id', $officerId)->first();
+        if (!$officerDepartment) {
+            return response()->json(['message' => 'Officer not assigned to the specified department.']);
+        }
+        $lastUpdated = Carbon::parse($officerDepartment->pivot->last_token_updated_at)->setTimezone(config('app.timezone'));
+        return response()->json($officerDepartment->pivot->last_token_updated_at);
+        // Increment, decrement, or edit the current_token field based on request
+        if (Carbon::parse($officerDepartment->pivot->last_token_updated_at)->isToday()) {
+            // Increment, decrement, or edit the current_token field based on request
+            $currentToken = $officer->current_token;
+            if ($request->has('increment')) {
+                $newToken = $currentToken + 1;
+            } elseif ($request->has('decrement')) {
+                $newToken = $currentToken - 1;
+            } elseif ($request->has('edit_token')) {
+                $newToken = $request->input('edit_token');
+            }
+    
+            // Update the current token
+            $department->officers()->updateExistingPivot($officerId, ['current_token' => $newToken]);
+    
+            return response()->json(['message' => 'Token updated successfully']);
+        } else {
+            return response()->json(['message' => 'Cannot update token. Last token update was not done today.']);
+        }
+
+        return response()->json(['message' => 'Token updated successfully']);
     }
 
     // Delete an existing officer
@@ -141,5 +202,16 @@ class OfficerController extends Controller
             $officers = Officer::where('id', $value->id)->with('user')->get();
         }
         return response()->json($officers);
+    }
+
+    public function getAllAppointments($departmentId) 
+    {
+        $userId = Auth::id();
+        $officer = Officer::where('user_id', $userId)->with('user', 'departments')->firstOrFail();
+
+        // Retrieve all appointments for the officer under the specified department
+        $appointments = $officer->appointments()->where('department_id', $departmentId)->with('user', 'department')->get();
+
+        return response()->json($appointments);
     }
 }

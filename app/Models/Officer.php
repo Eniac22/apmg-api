@@ -22,6 +22,10 @@ class Officer extends Model
         return $this->belongsToMany(Department::class, 'officers_to_department')
             ->withPivot(['last_token', 'current_token', 'last_token_updated_at']);
     }
+    public function appointments()
+    {
+        return $this->hasMany(Appointment::class, 'officer_id', 'id');
+    }
     public function getCurrentTokenAttribute()
     {
         return DB::table('officers_to_department')
