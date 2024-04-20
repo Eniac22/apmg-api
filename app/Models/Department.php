@@ -27,7 +27,8 @@ class Department extends Model
     }
 
     public function officers()
-    {
-        return $this->belongsToMany(Officer::class, 'officers_to_department', 'department_id', 'officer_id');
-    }
+{
+    return $this->belongsToMany(Officer::class, 'officers_to_department')
+                ->withPivot('last_token', 'current_token', 'last_token_updated_at');
+}
 }

@@ -127,12 +127,12 @@ class OfficerController extends Controller
         }
         $officer = Officer::where('user_id', $userId)->with('user', 'departments')->firstOrFail();
 
-            // Access additional details
-            $userDetails = $officer->user->toArray();
-            $departmentDetails = $officer->departments->toArray();
+        // Access additional details
+        $userDetails = $officer->user->toArray();
+        $departmentDetails = $officer->departments->toArray();
 
-            // Merge user details and department details into a single array
-            $officerDetails = array_merge($userDetails, ['departments' => $departmentDetails]);
+        // Merge user details and department details into a single array
+        $officerDetails = array_merge($userDetails, ['departments' => $departmentDetails]);
         return response()->json($officerDetails);
     }
 
@@ -151,8 +151,8 @@ class OfficerController extends Controller
         if (!$officerDepartment) {
             return response()->json(['message' => 'Officer not assigned to the specified department.']);
         }
+
         $lastUpdated = Carbon::parse($officerDepartment->pivot->last_token_updated_at)->setTimezone(config('app.timezone'));
-        return response()->json($officerDepartment->pivot->last_token_updated_at);
         // Increment, decrement, or edit the current_token field based on request
         if (Carbon::parse($officerDepartment->pivot->last_token_updated_at)->isToday()) {
             // Increment, decrement, or edit the current_token field based on request
@@ -170,7 +170,9 @@ class OfficerController extends Controller
     
             return response()->json(['message' => 'Token updated successfully']);
         } else {
-            return response()->json(['message' => 'Cannot update token. Last token update was not done today.']);
+            $newToken = 100;
+            $department->officers()->updateExistingPivot($officerId, ['current_token' => $newToken]);
+            return response()->json(['message' => 'Token updated successfully']);
         }
 
         return response()->json(['message' => 'Token updated successfully']);
@@ -204,14 +206,43 @@ class OfficerController extends Controller
         return response()->json($officers);
     }
 
-    public function getAllAppointments($departmentId) 
-    {
-        $userId = Auth::id();
-        $officer = Officer::where('user_id', $userId)->with('user', 'departments')->firstOrFail();
+    public function getAllAppointments($departmentId, Request $request) 
+{
+    $userId = Auth::id();
+    $officer = Officer::where('user_id', $userId)->with('user', 'departments')->firstOrFail();
 
-        // Retrieve all appointments for the officer under the specified department
-        $appointments = $officer->appointments()->where('department_id', $departmentId)->with('user', 'department')->get();
+    $appointments = $officer->appointments()->where('department_id', $departmentId)->with('user', 'department');
 
-        return response()->json($appointments);
+    // Retrieve search query and date range from the request
+    $searchQuery = $request->input('search_query');
+    $startDate = $request->input('start_date');
+    $endDate = $request->input('end_date');
+
+    // Apply global search filter
+    if ($searchQuery) {
+        $appointments->where(function ($query) use ($searchQuery) {
+            $query->whereHas('user', function ($query) use ($searchQuery) {
+                $query->where('name', 'like', '%' . $searchQuery . '%');
+            })
+            ->orWhereHas('department', function ($query) use ($searchQuery) {
+                $query->where('name', 'like', '%' . $searchQuery . '%');
+            })
+            ->orWhereHas('officer.user', function ($query) use ($searchQuery) {
+                $query->where('name', 'like', '%' . $searchQuery . '%');
+            })
+            ->orWhere('slot_id', 'like', '%' . $searchQuery . '%');
+        });
     }
+
+    // Apply date range filter
+    if ($startDate && $endDate) {
+        $appointments->whereBetween('slot_datetime', [$startDate, $endDate]);
+    }
+
+    // Fetch the filtered appointments
+    $appointments = $appointments->get();
+
+    return response()->json($appointments);
+}
+
 }
