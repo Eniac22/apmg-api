@@ -9,7 +9,7 @@ class BusinessController extends Controller
 {
     public function getAllBusiness()
     {
-        $businesses = Business::all()->pluck('name', 'id');
+        $businesses = Business::all(['id', 'name']);
         return response()->json($businesses);
     }
 

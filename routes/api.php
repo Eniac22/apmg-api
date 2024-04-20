@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\DepartmentController;
 use App\Http\Controllers\Api\OfficerController;
 use App\Http\Controllers\Api\AppointmentController;
 use App\Http\Controllers\Api\BusinessController;
+use App\Http\Controllers\Api\SearchController;
 
 Route::middleware(['jwtAuth', 'role:user'])->group(function () {    
     Route::post('/user/appointments',[AppointmentController::class, 'store']);
@@ -14,10 +15,12 @@ Route::middleware(['jwtAuth', 'role:user'])->group(function () {
     Route::get('/user/all-business',[BusinessController::class, 'getAllBusiness']);
     Route::get('/user/all-departments',[DepartmentController::class, 'getAllDepartments']);
     Route::get('/user/all-officers',[OfficerController::class, 'getAllOfficers']);
+    Route::get('/user/officers/{depId}',[OfficerController::class, 'getOfficers']);
     Route::get('/appointments/{id}/edit', [AppointmentController::class, 'editAppointment']);
     Route::put('/appointments/{id}', [AppointmentController::class, 'updateAppointment']);
     Route::delete('/appointments/{id}', [AppointmentController::class, 'deleteAppointment']);
-
+    Route::get('/search', [SearchController::class, 'search']);
+    Route::get('/get-selected/{id}/{type}', [SearchController::class, 'getSelected']);
 
 });
 

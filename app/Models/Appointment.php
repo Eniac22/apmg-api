@@ -16,6 +16,7 @@ class Appointment extends Model
         'slot_datetime',
         'department_id',
         'business_id',
+        'reason'
     ];
 
     // Define the relationship with the User model

@@ -9,6 +9,7 @@ use App\Models\Officer;
 use App\Models\Business;
 use App\Models\Department;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class OfficerController extends Controller
 {
@@ -132,5 +133,13 @@ class OfficerController extends Controller
         return response()->json("success", 200);
     }
 
-
+    public function getOfficers($depId) 
+    {
+        $officers = [];
+        $officerToDepartment = DB::table('officers_to_department')->where('department_id', $depId)->get();
+        foreach ($officerToDepartment as $key => $value) {
+            $officers = Officer::where('id', $value->id)->with('user')->get();
+        }
+        return response()->json($officers);
+    }
 }

@@ -12,34 +12,60 @@ use Illuminate\Support\Facades\DB;
 
 class AppointmentController extends Controller
 {
-    public function index()
-    {           
+    public function index(Request $request)
+    {    
+        // return response()->json('sajksjnk');       
         $userID = Auth::id();
         $result = [];
+
+        // Retrieve search query and date range from the request
+        $searchQuery = $request->input('search_query');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
         $appointments = Appointment::with(['user', 'department', 'officer'])
             ->where('user_id', $userID)
             ->orderBy('department_id')
-            ->orderBy('officer_id')
-            ->get();
+            ->orderBy('officer_id');
 
-        // Now you can access the current token for each officer within appointments
-        foreach ($appointments as $appointment) {
-            $currentToken = $appointment->officer->current_token;
-            $appointment->currentToken = $currentToken; // Assigning to a new key
-
-            // Include officer's contact number in the response
-            $appointment->officer_contact_number = $appointment->officer->contact_number;
-
-            // Include officer's name if available
-            if ($appointment->officer->user) {
-                $appointment->officer_name = $appointment->officer->user->name;
-            }
-
-            $result[] = $appointment;
+        // Apply global search filter
+        if ($searchQuery) {
+            $appointments->where(function ($query) use ($searchQuery) {
+                $query->whereHas('user', function ($query) use ($searchQuery) {
+                    $query->where('name', 'like', '%' . $searchQuery . '%');
+                })
+                ->orWhereHas('department', function ($query) use ($searchQuery) {
+                    $query->where('name', 'like', '%' . $searchQuery . '%');
+                })
+                ->orWhereHas('officer.user', function ($query) use ($searchQuery) {
+                    $query->where('name', 'like', '%' . $searchQuery . '%');
+                })
+                ->orWhere('slot_id', 'like', '%' . $searchQuery . '%');
+            });
         }
 
-        return response()->json($result);
+        // Apply date range filter
+        if ($startDate && $endDate) {
+            $appointments->whereBetween('slot_datetime', [$startDate, $endDate]);
+        }
+
+        // Fetch the filtered appointments with pagination
+        $perPage = 10; // Number of items per page
+        $appointments = $appointments->paginate($perPage);
+
+        // Modify the response structure if needed
+        $appointments->getCollection()->transform(function ($appointment) {
+            $appointment->currentToken = $appointment->officer->current_token;
+            $appointment->officer_contact_number = $appointment->officer->contact_number;
+            $appointment->officer_name = optional($appointment->officer->user)->name;
+
+            return $appointment;
+        });
+
+        return response()->json($appointments->items());
+
     }
+
 
     public function viewAppoinment($id) {
         $appointment = Appointment::findOrFail($id);
@@ -83,6 +109,7 @@ class AppointmentController extends Controller
             'slot_datetime' => 'required',
             'department_id' => 'required',
             'business_id' => 'required',
+            'reason' => 'nullable',
         ]);
 
         $officerId = $validatedData['officer_id'];
