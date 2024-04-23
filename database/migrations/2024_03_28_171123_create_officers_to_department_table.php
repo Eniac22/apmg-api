@@ -19,7 +19,7 @@ class CreateOfficersToDepartmentTable extends Migration
             $table->unsignedBigInteger('department_id');
             $table->integer('last_token')->nullable();
             $table->integer('current_token')->nullable();
-            $table->timestamp('last_token_updated_at');
+            $table->timestamp('current_token_updated_at');
             $table->foreign('officer_id')->references('id')->on('officers')->onDelete('cascade');
             $table->foreign('department_id')->references('id')->on('departments')->onDelete('cascade');
             $table->timestamps();

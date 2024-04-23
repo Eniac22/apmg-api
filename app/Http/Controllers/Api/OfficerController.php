@@ -152,11 +152,12 @@ class OfficerController extends Controller
             return response()->json(['message' => 'Officer not assigned to the specified department.']);
         }
 
-        $lastUpdated = Carbon::parse($officerDepartment->pivot->last_token_updated_at)->setTimezone(config('app.timezone'));
-        // Increment, decrement, or edit the current_token field based on request
-        if (Carbon::parse($officerDepartment->pivot->last_token_updated_at)->isToday()) {
+        $lastUpdated = Carbon::parse($officerDepartment->pivot->current_token_updated_at)->setTimezone(config('app.timezone'));
+         // Increment, decrement, or edit the current_token field based on request
+        if (Carbon::parse($officerDepartment->pivot->current_token_updated_at)->isToday()) {
             // Increment, decrement, or edit the current_token field based on request
             $currentToken = $officer->current_token;
+
             if ($request->has('increment')) {
                 $newToken = $currentToken + 1;
             } elseif ($request->has('decrement')) {
@@ -164,18 +165,17 @@ class OfficerController extends Controller
             } elseif ($request->has('edit_token')) {
                 $newToken = $request->input('edit_token');
             }
-    
+
             // Update the current token
-            $department->officers()->updateExistingPivot($officerId, ['current_token' => $newToken]);
-    
-            return response()->json(['message' => 'Token updated successfully']);
+         $department->officers()->updateExistingPivot($officerId, ['current_token' => $newToken]);
+            return response()->json(['message' => 'Token updated succeddssfully']);
         } else {
             $newToken = 100;
             $department->officers()->updateExistingPivot($officerId, ['current_token' => $newToken]);
             return response()->json(['message' => 'Token updated successfully']);
         }
 
-        return response()->json(['message' => 'Token updated successfully']);
+        return response()->json(['message' => 'Token updated sucssscessfully']);
     }
 
     // Delete an existing officer
@@ -230,7 +230,8 @@ class OfficerController extends Controller
             ->orWhereHas('officer.user', function ($query) use ($searchQuery) {
                 $query->where('name', 'like', '%' . $searchQuery . '%');
             })
-            ->orWhere('slot_id', 'like', '%' . $searchQuery . '%');
+            ->orWhere('slot_id', 'like', '%' . $searchQuery . '%')
+            ->orWhere('reason', 'like', '%' . $searchQuery . '%');
         });
     }
 
@@ -244,5 +245,30 @@ class OfficerController extends Controller
 
     return response()->json($appointments);
 }
+
+    public function getSpecificDepartment ($id) {
+        $userId = Auth::id();
+        $officer = Officer::where('user_id', $userId)->with('user', 'departments')->firstOrFail();
+        $officerId = $officer->id;
+        $department = DB::table('officers_to_department')
+        ->where('officer_id', $officerId)
+        ->where('department_id', $id)
+        ->leftJoin('departments', 'officers_to_department.department_id', '=', 'departments.id')
+        ->select('officers_to_department.*', 'departments.*')
+        ->first();
+
+        if (isset($department->current_token) || is_null($department->current_token)) {
+            // Set current_token to 100 if it's null
+            $department->current_token = 100;
+
+            // Update the value in the database
+            DB::table('officers_to_department')
+                ->where('officer_id', $officerId)
+                ->where('department_id', $id)
+                ->update(['current_token' => 100]);
+        }
+    
+        return response()->json($department);
+    }
 
 }

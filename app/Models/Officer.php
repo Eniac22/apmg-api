@@ -10,7 +10,7 @@ class Officer extends Model
     protected $fillable = ['user_id', 'contact_number', 'last_token', 'current_token'];
 
     protected $dates = [
-        'last_token_updated_at',
+        'current_token_updated_at',
     ];
     // Define the relationship with the User model
     public function user()
@@ -20,7 +20,7 @@ class Officer extends Model
     public function departments()
     {
         return $this->belongsToMany(Department::class, 'officers_to_department')
-            ->withPivot(['last_token', 'current_token', 'last_token_updated_at']);
+            ->withPivot(['last_token', 'current_token', 'current_token_updated_at']);
     }
     public function appointments()
     {

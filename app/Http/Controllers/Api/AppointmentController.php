@@ -40,7 +40,8 @@ class AppointmentController extends Controller
                 ->orWhereHas('officer.user', function ($query) use ($searchQuery) {
                     $query->where('name', 'like', '%' . $searchQuery . '%');
                 })
-                ->orWhere('slot_id', 'like', '%' . $searchQuery . '%');
+                ->orWhere('slot_id', 'like', '%' . $searchQuery . '%')
+                ->orWhere('reason', 'like', '%' . $searchQuery . '%');
             });
         }
 
@@ -124,7 +125,7 @@ class AppointmentController extends Controller
 
         $currentDate = Carbon::now()->toDateString(); // Get the current date in "Y-m-d" format
         
-        if (Carbon::parse($officerDepartment->last_token_updated_at)->toDateString() == $currentDate) {
+        if (Carbon::parse($officerDepartment->current_token_updated_at)->toDateString() == $currentDate) {
             // It's the first appointment of the day for the officer in the department
             $slot = $officerDepartment->last_token + 1;
         } else {
@@ -142,7 +143,7 @@ class AppointmentController extends Controller
                 ->where('id', $officerDepartment->id)
                 ->update([
                     'last_token' => $slot,
-                    'last_token_updated_at' => Carbon::now(),
+                    'current_token_updated_at' => Carbon::now(),
                 ]);
         }
 
