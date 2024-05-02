@@ -51,12 +51,13 @@ class AppointmentController extends Controller
         }
 
         // Fetch the filtered appointments with pagination
-        $perPage = 10; // Number of items per page
+        $perPage = env('PER_PAGE', 10); // Number of items per page
         $appointments = $appointments->paginate($perPage);
 
         // Modify the response structure if needed
         $appointments->getCollection()->transform(function ($appointment) {
             $appointment->currentToken = $appointment->officer->current_token;
+            $appointment->current_token_updated_at = $appointment->officer->current_token_updated_at;
             $appointment->officer_contact_number = $appointment->officer->contact_number;
             $appointment->officer_name = optional($appointment->officer->user)->name;
 
@@ -125,7 +126,7 @@ class AppointmentController extends Controller
 
         $currentDate = Carbon::now()->toDateString(); // Get the current date in "Y-m-d" format
         
-        if (Carbon::parse($officerDepartment->current_token_updated_at)->toDateString() == $currentDate) {
+        if (isset($officerDepartment->current_token_updated_at) && isset($officerDepartment->last_token) && Carbon::parse($officerDepartment->current_token_updated_at)->toDateString() == $currentDate ) {
             // It's the first appointment of the day for the officer in the department
             $slot = $officerDepartment->last_token + 1;
         } else {
@@ -142,8 +143,7 @@ class AppointmentController extends Controller
             DB::table('officers_to_department')
                 ->where('id', $officerDepartment->id)
                 ->update([
-                    'last_token' => $slot,
-                    'current_token_updated_at' => Carbon::now(),
+                    'last_token' => $slot
                 ]);
         }
 

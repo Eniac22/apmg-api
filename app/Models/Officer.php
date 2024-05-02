@@ -32,4 +32,14 @@ class Officer extends Model
             ->where('officer_id', $this->id)
             ->value('current_token');
     }
+    public function getCurrentTokenUpdatedAtAttribute()
+    {
+        return DB::table('officers_to_department')
+            ->where('officer_id', $this->id)
+            ->value('current_token_updated_at');
+    }
+    public function leaves()
+    {
+        return $this->hasMany(Leaves::class);
+    }
 }

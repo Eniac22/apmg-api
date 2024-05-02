@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\Officer;
 use App\Models\Business;
 use App\Models\Department;
+use App\Models\Appointment;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -50,7 +51,7 @@ class OfficerController extends Controller
         }
 
         // Retrieve all officers associated with the specified department
-        $officers = Officer::where('department_id', $department->id)->get();
+        $officers = $department->officers()->with('user')->get();
 
         return response()->json($officers);
     }
@@ -167,7 +168,7 @@ class OfficerController extends Controller
             }
 
             // Update the current token
-         $department->officers()->updateExistingPivot($officerId, ['current_token' => $newToken]);
+            $department->officers()->updateExistingPivot($officerId, ['current_token' => $newToken]);
             return response()->json(['message' => 'Token updated succeddssfully']);
         } else {
             $newToken = 100;
@@ -201,15 +202,21 @@ class OfficerController extends Controller
         $officers = [];
         $officerToDepartment = DB::table('officers_to_department')->where('department_id', $depId)->get();
         foreach ($officerToDepartment as $key => $value) {
-            $officers = Officer::where('id', $value->id)->with('user')->get();
+            $officer = Officer::where('id', $value->id)->with('user')->get();
+            if($officer) {
+                $officers[] = $officer->toArray();
+            }
         }
-        return response()->json($officers);
+        $flattenedOfficers = array_merge(...$officers);
+        return response()->json($flattenedOfficers);
     }
 
     public function getAllAppointments($departmentId, Request $request) 
 {
     $userId = Auth::id();
     $officer = Officer::where('user_id', $userId)->with('user', 'departments')->firstOrFail();
+    $department = Department::findOrFail($departmentId);
+    $officerDepartment = $department->officers()->where('officer_id', $officer->id)->first();
 
     $appointments = $officer->appointments()->where('department_id', $departmentId)->with('user', 'department');
 
@@ -240,8 +247,15 @@ class OfficerController extends Controller
         $appointments->whereBetween('slot_datetime', [$startDate, $endDate]);
     }
 
+    // Apply slot_id filter
+    $appointments->where('slot_id', '>=', $officerDepartment->current_token);
+
     // Fetch the filtered appointments
-    $appointments = $appointments->get();
+    // Paginate the results
+    $appointments->orderBy('slot_id', 'asc');
+    $perPage = env('PER_PAGE', 10);
+    $appointments = $appointments->paginate($perPage);
+    // $appointments = $appointments->get();
 
     return response()->json($appointments);
 }
@@ -250,25 +264,34 @@ class OfficerController extends Controller
         $userId = Auth::id();
         $officer = Officer::where('user_id', $userId)->with('user', 'departments')->firstOrFail();
         $officerId = $officer->id;
-        $department = DB::table('officers_to_department')
-        ->where('officer_id', $officerId)
-        ->where('department_id', $id)
-        ->leftJoin('departments', 'officers_to_department.department_id', '=', 'departments.id')
-        ->select('officers_to_department.*', 'departments.*')
-        ->first();
 
-        if (isset($department->current_token) || is_null($department->current_token)) {
-            // Set current_token to 100 if it's null
-            $department->current_token = 100;
+        // Get the specific department for the officer
+        $department = $officer->departments()->where('departments.id', $id)->first();
 
-            // Update the value in the database
-            DB::table('officers_to_department')
-                ->where('officer_id', $officerId)
-                ->where('department_id', $id)
-                ->update(['current_token' => 100]);
+        if (!$department) {
+            return response()->json(['message' => 'Department not found for this officer.'], 404);
         }
-    
-        return response()->json($department);
+
+        // Check if the current_token is null or not set
+        if (!isset($department->pivot->current_token) || is_null($department->pivot->current_token)) {
+            // Set current_token to 100 if it's null
+            $department->pivot->current_token = 100;
+
+            // Update the value in the pivot table
+            $officer->departments()->updateExistingPivot($id, ['current_token' => 100]);
+        }
+
+        // Include current_token in the response
+        $response = $department->toArray();
+        $response['current_token'] = $department->pivot->current_token;
+
+        return response()->json($response);
+
+    }
+
+    public function officerAppointments($depId, $officerId) {
+        $appointments = Appointment::where('officer_id', $officerId)->where('department_id', $depId)->with('user')->paginate(env('PER_PAGE', 10));
+        return response()->json($appointments);
     }
 
 }

@@ -31,4 +31,9 @@ class Department extends Model
     return $this->belongsToMany(Officer::class, 'officers_to_department')
                 ->withPivot('last_token', 'current_token', 'current_token_updated_at');
 }
+
+    public function leaves()
+    {
+        return $this->hasMany(Leave::class);
+    }
 }

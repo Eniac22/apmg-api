@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use App\Models\Business;
@@ -14,15 +15,19 @@ class SearchController extends Controller
     public function search(Request $request)
     {
         $query = $request->input('q');
+        if(empty($query)){
+            return response()->json([]);
+        }
 
         $businesses = Business::where('name', 'like', "%$query%")
             ->orWhere('address', 'like', "%$query%")
             ->orWhere('contact_number', 'like', "%$query%")
             ->get();
 
-        $departments = Department::where('name', 'like', "%$query%")
-            ->orWhere('contact_number', 'like', "%$query%")
-            ->get();
+        $departments = Department::where(function ($queryBuilder) use ($query) {
+            $queryBuilder->where('name', 'like', "%$query%")
+                ->whereHas('officers');
+            })->orWhere('contact_number', 'like', "%$query%")->get();
         
         $officers = DB::table('officers_to_department')
             ->join('officers', 'officers_to_department.officer_id', '=', 'officers.id')
@@ -85,15 +90,15 @@ class SearchController extends Controller
         switch ($type) {
             case 'business':
                 $business = Business::where('id', $id)->get()->toArray();
-                $departments = Department::where('business_id', $id)->get()->toArray();
+                $departments = Department::where('business_id', $id)->whereHas('officers')->get()->toArray();
                 break;
 
             case 'department':
                 $departments = Department::where('id', $id)->get()->toArray();
-                $business = Business::where('id', $departments[0]['id'])->get()->toArray();
+                $business = Business::where('id', $departments[0]['business_id'])->get()->toArray();
                 $officerToDepartment = DB::table('officers_to_department')->where('department_id', $id)->get();
                 foreach ($officerToDepartment as $key => $value) {
-                    $officers = Officer::where('id', $value->id)->with('user')->get();
+                    $officers = Officer::where('id', $value->officer_id)->with('user')->get();
                 }
                 break;
 
@@ -115,4 +120,52 @@ class SearchController extends Controller
         ]);
     }
 
+    public function businessDepartmentSearch(Request $request) {
+        $query = $request->input('q');
+        if(empty($query)){
+            return response()->json([]);
+        }
+        $userId = Auth::id();
+        $officer = Officer::where('user_id', $userId)->with('user', 'departments')->firstOrFail();
+        
+        $businesses = collect();
+
+        $filteredDepartments = $officer->departments()->where(function ($queryBuilder) use ($query) {
+            $queryBuilder->where('name', 'like', "%$query%");
+        })->get();
+
+
+        foreach ($officer->departments as $department) {
+            if ($department->business) {
+                $businesses = $businesses->merge(Business::where('name', 'like', "%$query%")
+                ->where('id', $department->business->id)
+                ->get());
+            }
+        }
+    
+        $uniqueBusinesses = $businesses->unique('id')->values();
+
+        $results = [];
+
+        foreach ($uniqueBusinesses as $business) {
+            $results[] = [
+                'type' => 'business',
+                'id' => $business->id,
+                'name' => $business->name,
+                'address' => $business->address
+            ];
+        }
+
+        foreach ($filteredDepartments as $department) {
+            $results[] = [
+                'type' => 'department',
+                'business' => $department->business,
+                'id' => $department->id,
+                'name' => $department->name,
+                'contact_number' => $department->contact_number,
+            ];
+        }
+    
+        return response()->json($results);
+    }   
 }
