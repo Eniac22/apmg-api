@@ -36,13 +36,12 @@ class AuthController extends Controller
 
         $user = new User();
         $user->name = $request->name;
-        if ($request->has('type')) {
-            $user->role = $request->type;
+        if ($request->has('user_type')) {
+            $user->role = $request->user_type;
         }
         $user->email = $request->email;
         $user->password = bcrypt($request->password);
         $user->save();
-
         if ($request->user_type === 'business') {
             $business = new Business();
             $business->admin_id = $user->id;

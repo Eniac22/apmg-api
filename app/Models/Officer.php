@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\DB;
 
 class Officer extends Model
 {
-    protected $fillable = ['user_id', 'contact_number', 'last_token', 'current_token'];
+    protected $fillable = ['user_id', 'business_id', 'contact_number', 'last_token', 'current_token'];
 
     protected $dates = [
         'current_token_updated_at',

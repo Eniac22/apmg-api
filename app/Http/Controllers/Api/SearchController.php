@@ -18,7 +18,6 @@ class SearchController extends Controller
         if(empty($query)){
             return response()->json([]);
         }
-
         $businesses = Business::where('name', 'like', "%$query%")
             ->orWhere('address', 'like', "%$query%")
             ->orWhere('contact_number', 'like', "%$query%")
@@ -35,7 +34,8 @@ class SearchController extends Controller
             ->join('users', 'officers.user_id', '=', 'users.id')
             ->where(function ($queryBuilder) use ($query) {
                 $queryBuilder->where('officers.contact_number', 'like', "%$query%")
-                    ->orWhere('users.name', 'like', "%$query%");
+                    ->orWhere('users.name', 'like', "%$query%")
+                    ->orWhere('users.email', 'like', "%$query%");
             })
             ->select(
                 'officers.id as officer_id',

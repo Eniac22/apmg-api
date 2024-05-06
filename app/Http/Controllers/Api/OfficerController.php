@@ -58,6 +58,7 @@ class OfficerController extends Controller
     
     public function create(Request $request, Department $department)
     {
+
         $request->validate([
             'name' => 'required|string',
             'email' => 'required|email|unique:users,email',
@@ -65,7 +66,6 @@ class OfficerController extends Controller
             'contact_number' => 'nullable|string',
             // Add more validation rules as needed
         ]);
-
         // Create a new user for the officer
         $user = User::create([
             'name' => $request->name,
@@ -77,7 +77,8 @@ class OfficerController extends Controller
         // Create a new officer associated with the user and department
         $officer = Officer::create([
             'user_id' => $user->id,
-            'contact_number' => $request->contact_number
+            'contact_number' => $request->contact_number,
+            'business_id' => $department->business_id
         ]);
 
         // Associate the officer with the department
@@ -192,7 +193,7 @@ class OfficerController extends Controller
         // Detach the officer from the department
         $officer->departments()->detach($departmentId);
         // Delete the officer
-        $officer->delete();
+        // $officer->delete();
         
         return response()->json("success", 200);
     }
@@ -212,53 +213,53 @@ class OfficerController extends Controller
     }
 
     public function getAllAppointments($departmentId, Request $request) 
-{
-    $userId = Auth::id();
-    $officer = Officer::where('user_id', $userId)->with('user', 'departments')->firstOrFail();
-    $department = Department::findOrFail($departmentId);
-    $officerDepartment = $department->officers()->where('officer_id', $officer->id)->first();
+    {
+        $userId = Auth::id();
+        $officer = Officer::where('user_id', $userId)->with('user', 'departments')->firstOrFail();
+        $department = Department::findOrFail($departmentId);
+        $officerDepartment = $department->officers()->where('officer_id', $officer->id)->first();
 
-    $appointments = $officer->appointments()->where('department_id', $departmentId)->with('user', 'department');
+        $appointments = $officer->appointments()->where('department_id', $departmentId)->with('user', 'department');
 
-    // Retrieve search query and date range from the request
-    $searchQuery = $request->input('search_query');
-    $startDate = $request->input('start_date');
-    $endDate = $request->input('end_date');
+        // Retrieve search query and date range from the request
+        $searchQuery = $request->input('search_query');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
 
-    // Apply global search filter
-    if ($searchQuery) {
-        $appointments->where(function ($query) use ($searchQuery) {
-            $query->whereHas('user', function ($query) use ($searchQuery) {
-                $query->where('name', 'like', '%' . $searchQuery . '%');
-            })
-            ->orWhereHas('department', function ($query) use ($searchQuery) {
-                $query->where('name', 'like', '%' . $searchQuery . '%');
-            })
-            ->orWhereHas('officer.user', function ($query) use ($searchQuery) {
-                $query->where('name', 'like', '%' . $searchQuery . '%');
-            })
-            ->orWhere('slot_id', 'like', '%' . $searchQuery . '%')
-            ->orWhere('reason', 'like', '%' . $searchQuery . '%');
-        });
+        // Apply global search filter
+        if ($searchQuery) {
+            $appointments->where(function ($query) use ($searchQuery) {
+                $query->whereHas('user', function ($query) use ($searchQuery) {
+                    $query->where('name', 'like', '%' . $searchQuery . '%');
+                })
+                ->orWhereHas('department', function ($query) use ($searchQuery) {
+                    $query->where('name', 'like', '%' . $searchQuery . '%');
+                })
+                ->orWhereHas('officer.user', function ($query) use ($searchQuery) {
+                    $query->where('name', 'like', '%' . $searchQuery . '%');
+                })
+                ->orWhere('slot_id', 'like', '%' . $searchQuery . '%')
+                ->orWhere('reason', 'like', '%' . $searchQuery . '%');
+            });
+        }
+
+        // Apply date range filter
+        if ($startDate && $endDate) {
+            $appointments->whereBetween('slot_datetime', [$startDate, $endDate]);
+        }
+
+        // Apply slot_id filter
+        $appointments->where('slot_id', '>=', $officerDepartment->current_token);
+
+        // Fetch the filtered appointments
+        // Paginate the results
+        $appointments->orderBy('slot_id', 'asc');
+        $perPage = env('PER_PAGE', 10);
+        $appointments = $appointments->paginate($perPage);
+        // $appointments = $appointments->get();
+
+        return response()->json($appointments);
     }
-
-    // Apply date range filter
-    if ($startDate && $endDate) {
-        $appointments->whereBetween('slot_datetime', [$startDate, $endDate]);
-    }
-
-    // Apply slot_id filter
-    $appointments->where('slot_id', '>=', $officerDepartment->current_token);
-
-    // Fetch the filtered appointments
-    // Paginate the results
-    $appointments->orderBy('slot_id', 'asc');
-    $perPage = env('PER_PAGE', 10);
-    $appointments = $appointments->paginate($perPage);
-    // $appointments = $appointments->get();
-
-    return response()->json($appointments);
-}
 
     public function getSpecificDepartment ($id) {
         $userId = Auth::id();
@@ -292,6 +293,45 @@ class OfficerController extends Controller
     public function officerAppointments($depId, $officerId) {
         $appointments = Appointment::where('officer_id', $officerId)->where('department_id', $depId)->with('user')->paginate(env('PER_PAGE', 10));
         return response()->json($appointments);
+    }
+
+    public function linkOfficer(Request $request) 
+    {
+        $email = $request->input('email');
+        $department_id = $request->input('department_id');
+        $user = User::where('email', $email)->first();
+        if(!$user) {
+            return response()->json(['message' => 'User not found'], 404);
+        }
+
+        $department = Department::find($department_id);
+        $business = $department->business;
+
+        // check user already a user
+        $userAsOfficer = DB::table('officers_to_department')->where('officer_id', $user->id)->where('department_id', $department->id)->first();
+        if ($userAsOfficer) {
+            return response()->json(['message' => 'User is already linked as an officer'], 400);
+        }
+        
+        // create entry in officers table
+        $existingOfficer = Officer::where('user_id', $user->id)->where('business_id', $business->id)->first();
+        if(!$existingOfficer) {
+            $officer = Officer::create([
+                'user_id' => $user->id,
+                'business_id' => $business->id,
+                'contact_number' => $business->contact_number
+            ]);
+        }
+        
+        //create entry ins officers_to_dep table
+        DB::table('officers_to_department')->insert([
+            'officer_id' => $existingOfficer ? $existingOfficer->id : $officer->id,
+            'department_id' => $department->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        
+        return response()->json(['message' => 'Success'], 200);
     }
 
 }

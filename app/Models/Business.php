@@ -17,4 +17,9 @@ class Business extends Model
     public function departments() {
         return $this->hasMany(Department::class);
     }
+
+    public function leaves()
+    {
+        return $this->hasMany(Leaves::class);
+    }
 }

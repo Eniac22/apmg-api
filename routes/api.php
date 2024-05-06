@@ -22,7 +22,7 @@ Route::middleware(['jwtAuth', 'role:user'])->group(function () {
     Route::delete('/user/appointments/{id}', [AppointmentController::class, 'deleteAppointment']);
     Route::get('/search', [SearchController::class, 'search']);
     Route::get('/get-selected/{id}/{type}', [SearchController::class, 'getSelected']);
-
+    Route::get('/get-business-officer-leaves/{business_id}', [LeaveController::class, 'getBusinessOfficerLeavesForUser']);
 });
 
 Route::middleware(['jwtAuth', 'role:officer'])->group(function () {    
@@ -49,11 +49,13 @@ Route::middleware(['jwtAuth', 'role:business'])->group(function () {
     Route::get('/business/departments/{department}/sub-departments',[DepartmentController::class, 'listSubDepartments']);
     Route::put('/business/departments/{id}',[DepartmentController::class, 'update']);
     Route::delete('/business/departments/{id}',[DepartmentController::class, 'destroy']);
-    // Route::get('/business/departments/{department}/officers/{officer}',[DepartmentController::class, 'destroy']);
+    Route::get('/business/departments/{department}/officers/{officer}',[DepartmentController::class, 'destroy']);
     Route::post('/business/leaves',[LeaveController::class, 'addBusinessLeave']);
     Route::get('/business/leaves',[LeaveController::class, 'getBusinessLeaves']);
     Route::get('/business/officer-leaves',[LeaveController::class, 'getBusinessOfficerLeaves']);
     Route::delete('/business/leaves/{id}',[LeaveController::class, 'deleteLeave']);
+    Route::post('/business/link-officer', [OfficerController::class, 'linkOfficer']);
+    
 
 });
 

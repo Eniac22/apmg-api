@@ -16,8 +16,10 @@ class CreateOfficersTable extends Migration
         Schema::create('officers', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('business_id');
             $table->string('contact_number')->nullable();
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+            $table->foreign('business_id')->references('id')->on('businesses')->onDelete('cascade');
             $table->timestamps();
             
         });

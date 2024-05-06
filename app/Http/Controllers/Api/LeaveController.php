@@ -10,6 +10,7 @@ use App\Models\Leaves;
 use App\Models\Business;
 use App\Models\Officer;
 use App\Models\Department;
+use Carbon\Carbon;
 
 class LeaveController extends Controller
 {
@@ -103,6 +104,53 @@ class LeaveController extends Controller
             }
         }
         return response()->json($leaves);
+    }
+
+    // for user get business + officer leaves
+    public function getBusinessOfficerLeavesForUser($business_id) 
+    {
+        $business = Business::with(['departments.officers.leaves', 'leaves'])->find($business_id);
+
+        // Access the leaves through the relationships
+        $businessLeaves = $business->leaves;
+
+        $departmentOfficerLeaves = $business->departments->flatMap(function ($department) {
+            return $department->officers->flatMap(function ($officer) {
+                return $officer->leaves;
+            });
+        });
+
+        $allLeaves = $businessLeaves->merge($departmentOfficerLeaves);
+        $processedDates = $this->processDates($allLeaves);
+
+        return response()->json($processedDates);
+    }
+
+    // process leave dates
+    private function processDates($leaves) 
+    {
+        $allDates = [];
+
+        $leaves->each(function ($leave) use (&$allDates) {
+            $startDate = Carbon::parse($leave->start_date);
+            $endDate = Carbon::parse($leave->end_date);
+
+            // Generate date range for each leave
+            $dateRange = $startDate->toPeriod($endDate)->toArray();
+
+            // Format dates without time component and in UTC
+            $formattedDates = array_map(function ($date) {
+                return $date->toDateString(); // Convert to YYYY-MM-DD format
+            }, $dateRange);
+
+            // Merge formatted date range with allDates array
+            $allDates = array_merge($allDates, $formattedDates);
+        });
+
+        // Sort and unique the dates array
+        $allDates = array_values(array_unique($allDates));
+
+        return $allDates;
     }
 
 }
